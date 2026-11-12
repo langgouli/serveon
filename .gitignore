@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Node / Vite
+node_modules/
+dist/
+*.local
+
+# 环境与密钥
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# 日志与数据
+logs/
+*.log
+data/
+*.db
+*.sqlite3
+*.sqlite
+
+# GUI 打包产物
+gui/cross-border-scout/dist/
+gui/cross-border-scout/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/

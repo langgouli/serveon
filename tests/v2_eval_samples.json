@@ -1,0 +1,795 @@
+{
+ "meta": {
+  "kind": "v2 电商客服评测样例（chat_v2 用例）",
+  "source": "tests/test_react_v2_boundary.py FULL 40 例（输入消息序列同 v1 boundary）",
+  "judge": "LLM-as-judge：样例+实际对话输出交判定模型",
+  "driver": "app.react_v2.chat_v2（真实模型，LLM_PROVIDER=ark）",
+  "generated": "2026-11-08"
+ },
+ "cases": [
+  {
+   "id": "P1",
+   "type": "物流查询",
+   "description": "用户携带订单号查询物流轨迹",
+   "input": [
+    "ORD001物流到哪了"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "客服调用 get_logistics(ORD001) 查询到物流轨迹，返回各节点信息并标注“已签收/派送中”等状态；不转人工",
+   "pass_criteria": [
+    "回复包含订单号ORD001",
+    "回复给出物流轨迹节点信息（含签收/派送等状态）",
+    "needs_human=false"
+   ],
+   "fail_criteria": [
+    "needs_human=true被误转人工",
+    "答非所问（未提供任何物流轨迹信息）",
+    "反向追问订单号（已有单号）",
+    "编造轨迹信息"
+   ]
+  },
+  {
+   "id": "P2",
+   "type": "政策问答",
+   "description": "指代“这个订单”询问退换货政策，随后用户补出单号",
+   "input": [
+    "这个订单的退换货政策是什么",
+    "ORD001"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第二轮直接以ORD001回答退换货政策要点（如签收7天内支持退货退款），整体不转人工",
+   "pass_criteria": [
+    "第2轮回复包含ORD001",
+    "回复给出退换货政策内容（7天/签收等口径）",
+    "needs_human=false"
+   ],
+   "fail_criteria": [
+    "两轮后仍无实际政策内容",
+    "只追问订单号不作答",
+    "needs_human=true被误转人工"
+   ]
+  },
+  {
+   "id": "P3",
+   "type": "政策问答",
+   "description": "用户单独询问保修政策",
+   "input": [
+    "保修政策是什么"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "通过 search_policy(保修) 检索保修政策条款作答",
+   "pass_criteria": [
+    "回复包含保修政策内容（保修期/范围等口径）"
+   ],
+   "fail_criteria": [
+    "答非所问",
+    "拒绝回答",
+    "无谓反问“哪个商品”（可整体作答）"
+   ]
+  },
+  {
+   "id": "P4",
+   "type": "多意图组合",
+   "description": "同时询问订单状态与退换货政策",
+   "input": [
+    "ORD001订单状态，退换货政策是什么"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "两个诉求都被回应：ORD001订单状态（已签收等）+退换货政策要点",
+   "pass_criteria": [
+    "回复包含ORD001",
+    "包含订单状态信息（签收/7天/政策字样）",
+    "包含退换货政策内容"
+   ],
+   "fail_criteria": [
+    "只答其一遗漏另一诉求",
+    "状态或政策口径错误",
+    "转人工"
+   ]
+  },
+  {
+   "id": "P5",
+   "type": "多意图组合",
+   "description": "物流+保修政策且无订单号：物流部分应列订单列表",
+   "input": [
+    "快递到哪了，保修政策是什么"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "物流部分因缺单号调用 get_user_orders 列出用户最近订单供选择，保修政策正常作答，整体不转人工",
+   "pass_criteria": [
+    "回复出现订单列表（多个ORD编号供用户选择）",
+    "回复包含保修政策内容",
+    "needs_human=false",
+    "订单号问询不超过1次"
+   ],
+   "fail_criteria": [
+    "物流问题被答“无法处理”",
+    "保修政策未答",
+    "needs_human=true被误转人工",
+    "连续多轮只问订单号"
+   ]
+  },
+  {
+   "id": "P6",
+   "type": "售后流程",
+   "description": "退货退款并同时问运费政策",
+   "input": [
+    "我要退货退款ORD002，运费政策是什么"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "推进售后流程：ORD002退货退款明细预览（金额/类型）+确认提醒；运费政策经search_policy作答；预览阶段不转人工",
+   "pass_criteria": [
+    "回复包含ORD002",
+    "包含明细/预览字样",
+    "包含运费承担政策内容",
+    "needs_human=false"
+   ],
+   "fail_criteria": [
+    "未给预览",
+    "预览后政策问题被丢弃",
+    "金额/订单信息错误",
+    "needs_human=true被误转人工"
+   ]
+  },
+  {
+   "id": "P7",
+   "type": "售后流程",
+   "description": "换货缺少订单号+问换货政策",
+   "input": [
+    "我要换货，换货政策是什么"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "缺单号时列订单列表供选（换货诉求带上），换货政策正常作答",
+   "pass_criteria": [
+    "回复出现订单号/订单列表",
+    "包含换货政策内容"
+   ],
+   "fail_criteria": [
+    "直接转人工",
+    "换货政策未答",
+    "无单号情况下连续追问不推进"
+   ]
+  },
+  {
+   "id": "P8",
+   "type": "多意图组合",
+   "description": "物流轨迹+退款到账政策同时查询",
+   "input": [
+    "ORD001物流到哪了，退款到账政策是什么"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "物流轨迹与到账政策（1-3个工作日等口径）都要回答",
+   "pass_criteria": [
+    "回复含ORD001",
+    "包含物流轨迹信息",
+    "包含到账政策内容（工作日/到账口径）"
+   ],
+   "fail_criteria": [
+    "只答其一",
+    "到账时间口径错误",
+    "转人工"
+   ]
+  },
+  {
+   "id": "Q1",
+   "type": "槽位继承",
+   "description": "先查某单物流，再无单号发起退货退款：应继承当前订单",
+   "input": [
+    "ORD001物流到哪了",
+    "我要退货退款"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第2轮无单号但会话背景当前订单=ORD001，直接以ORD001进入退款明细预览",
+   "pass_criteria": [
+    "第2轮回复包含ORD001",
+    "第2轮给出预览/明细",
+    "needs_human=false"
+   ],
+   "fail_criteria": [
+    "第2轮再次要求提供订单号（未继承槽位）",
+    "预览订单号错误"
+   ]
+  },
+  {
+   "id": "Q2",
+   "type": "售后流程",
+   "description": "退货退款+保修政策同时请求",
+   "input": [
+    "我要退货退款ORD001，保修政策是什么"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "ORD001退款预览+保修政策作答",
+   "pass_criteria": [
+    "回复含ORD001",
+    "包含明细/预览",
+    "包含保修政策内容"
+   ],
+   "fail_criteria": [
+    "政策未答或售后未预览",
+    "needs_human=true被误转人工"
+   ]
+  },
+  {
+   "id": "Q3",
+   "type": "状态查询",
+   "description": "发起退款后续查询到账情况",
+   "input": [
+    "我要退款ORD001",
+    "退款到账了吗"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第1轮进入退款流程/预览；第2轮依据进行中退款记录回答进度与到账口径，而非另起流程或转人工",
+   "pass_criteria": [
+    "第1轮包含退款明细/预览",
+    "第2轮包含ORD001且回应到账/进度信息"
+   ],
+   "fail_criteria": [
+    "第2轮重新发起预览流程（未回答进度）",
+    "needs_human=true被误转人工",
+    "答非所问"
+   ]
+  },
+  {
+   "id": "Q4",
+   "type": "售后流程",
+   "description": "换货诉求+运费政策",
+   "input": [
+    "我要换货ORD001，这个订单运费政策是什么"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "按换货推进流程（预览换货明细），运费政策作答",
+   "pass_criteria": [
+    "回复含换货字样",
+    "回复含运费政策内容（承担方口径）"
+   ],
+   "fail_criteria": [
+    "误判为退货退款",
+    "政策未答",
+    "needs_human=true被误转人工"
+   ]
+  },
+  {
+   "id": "Q5",
+   "type": "指代消解",
+   "description": "先凭指代问运费政策，再补出订单号",
+   "input": [
+    "这个订单运费政策是什么",
+    "ORD001"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第2轮用户补出ORD001后正常作答运费政策（承担口径）且绑定该订单",
+   "pass_criteria": [
+    "第2轮回复包含ORD001",
+    "包含运费政策内容（承担方）"
+   ],
+   "fail_criteria": [
+    "未绑定ORD001作答",
+    "政策未答或答非所问"
+   ]
+  },
+  {
+   "id": "Q6",
+   "type": "看词解歧修复",
+   "description": "退款确认完成后再问到账与政策，均不得被售后关键词劫持",
+   "input": [
+    "我要退货退款ORD001",
+    "好的",
+    "退款到账了吗",
+    "这个订单退换货政策是什么"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第2轮“好的”触发建单；第3轮“退款到账了吗”正常回答该单退款到账口径（引用ORD001）；第4轮政策问题照常作答（v2修复看词劫持）",
+   "pass_criteria": [
+    "第3轮回复引用ORD001并回答到账/进度情况",
+    "第4轮对政策询问给出政策内容或正常回应，不被售后流程吞掉",
+    "全程needs_human=false"
+   ],
+   "fail_criteria": [
+    "第3轮丢失上下文/转人工",
+    "第4轮政策问题被看词劫持成售后进度或拒绝",
+    "政策回答覆盖退款进度口径"
+   ]
+  },
+  {
+   "id": "Q7",
+   "type": "预览插问",
+   "description": "退款待确认环节用户改问物流：应作答物流且保留预览草稿",
+   "input": [
+    "我要退货退款ORD001",
+    "物流到哪了"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第2轮在退款预览未确认状态下回答ORD001物流轨迹，并保留/重申待确认提示（草稿不丢）",
+   "pass_criteria": [
+    "第1轮给出退货退款明细预览",
+    "第2轮回答物流轨迹（含ORD001轨迹信息）且仍含确认/流程提醒",
+    "needs_human=false"
+   ],
+   "fail_criteria": [
+    "第2轮丢失预览草稿（只答物流无任何确认提醒）",
+    "第2轮转人工",
+    "物流问题被忽略不回应"
+   ]
+  },
+  {
+   "id": "Q8",
+   "type": "换单重置",
+   "description": "退款中途用户更换订单号：流程切换到新订单",
+   "input": [
+    "我要退货退款ORD001",
+    "换个ORD002的货试试"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第2轮唤起针对ORD002的售后流程，展示ORD002明细/预览，不残留ORD001处理状态",
+   "pass_criteria": [
+    "第2轮回复包含ORD002",
+    "第2轮给出ORD002的明细/预览或明确受理新订单"
+   ],
+   "fail_criteria": [
+    "沿用ORD001回复（未切换）",
+    "第2轮答非所问",
+    "needs_human=true被误转人工"
+   ]
+  },
+  {
+   "id": "X1",
+   "type": "非职责兜底",
+   "description": "用户话题超出客服职责边界",
+   "input": [
+    "今天天气不错"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "说明客服职责范围并给出转人工引导；needs_human=true",
+   "pass_criteria": [
+    "回复说明职责边界（非售后范畴）",
+    "给出转人工引导（或自身needs_human=true）"
+   ],
+   "fail_criteria": [
+    "真的对天气问题展开回答",
+    "完全忽略不处理",
+    "未给转人工提示"
+   ]
+  },
+  {
+   "id": "X2",
+   "type": "异常处理",
+   "description": "查询不存在的订单",
+   "input": [
+    "ORD999物流到哪了"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "ORD999不存在→告知查询不到/异常，并转人工核实处理（needs_human=true）",
+   "pass_criteria": [
+    "needs_human=true",
+    "回复解释无法查询/订单不存在",
+    "出现转人工提示"
+   ],
+   "fail_criteria": [
+    "编造ORD999物流轨迹",
+    "needs_human=false且无实质回应",
+    "仅追问不处理"
+   ]
+  },
+  {
+   "id": "X3",
+   "type": "越权处理",
+   "description": "用户请求处理他人名下订单的售后",
+   "input": [
+    "我要退货退款ORD006"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "ORD006非本人订单→告知仅能处理本人订单，按不支持答复口径说明无法办理（不建单），needs_human=false，不转人工。",
+   "pass_criteria": [
+    "needs_human=false",
+    "回复含本人/归属说明",
+    "说明无法办理且不转人工"
+   ],
+   "fail_criteria": [
+    "继续推进他人订单流程",
+    "仅拒绝但无转人工",
+    "泄露他人订单信息"
+   ]
+  },
+  {
+   "id": "X4",
+   "type": "异常处理",
+   "description": "用户输入无法匹配意图的乱码内容",
+   "input": [
+    "AGGC试剂发货了吗"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "无法辨认意图时说明受理范围并引导提供ORD订单号，或转人工；不得编造答非所问",
+   "pass_criteria": [
+    "回复含订单号引导或受理说明（出现“订单”字样）",
+    "或含转人工提示"
+   ],
+   "fail_criteria": [
+    "编造发货/订单信息",
+    "无任何引导的生硬拒绝",
+    "完全无关的回答"
+   ]
+  },
+  {
+   "id": "X5",
+   "type": "词表兼容",
+   "description": "“售后服务”表述应识别为售后诉求",
+   "input": [
+    "我要申请售后服务ORD001"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "“售后服务”识别售后诉求→推进ORD001售后流程（明细/预览）",
+   "pass_criteria": [
+    "回复推进售后（明细/预览/退款类型）",
+    "绑定ORD001"
+   ],
+   "fail_criteria": [
+    "被当作非职责/闲聊空回复",
+    "仅机械追问“哪个订单”不推进"
+   ]
+  },
+  {
+   "id": "X6",
+   "type": "异常处理",
+   "description": "发起退款但完全缺订单号",
+   "input": [
+    "我要退货退款"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "缺单号→调用订单列表让用户选，不猜订单号，needs_human=false",
+   "pass_criteria": [
+    "回复展示订单列表（多项ORD编号）供选择",
+    "needs_human=false",
+    "订单号问询不超过1次"
+   ],
+   "fail_criteria": [
+    "猜测订单号",
+    "needs_human=true被误转人工",
+    "连续多轮只问订单号"
+   ]
+  },
+  {
+   "id": "X7",
+   "type": "流程操作",
+   "description": "取消后再发起退款：先取消后重新推进",
+   "input": [
+    "我要退货退款ORD002",
+    "先不退",
+    "我要退货退款"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第2轮“先不退”确认取消；第3轮重新发起时基于ORD002继续推进（重新预览）",
+   "pass_criteria": [
+    "第2轮确认取消",
+    "第3轮重新进入ORD002的明细/预览"
+   ],
+   "fail_criteria": [
+    "取消后仍建单",
+    "重发后丢失上下文（重新开始只问订单号）"
+   ]
+  },
+  {
+   "id": "X8",
+   "type": "异常处理",
+   "description": "大小写变体订单号且不存在：应转人工",
+   "input": [
+    "ord8404物流到哪了"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "订单号归一化后ord8404仍不存在→转人工核实（needs_human=true）",
+   "pass_criteria": [
+    "needs_human=true"
+   ],
+   "fail_criteria": [
+    "needs_human=false但仍试图返回轨迹信息"
+   ]
+  },
+  {
+   "id": "BE1",
+   "type": "边界条件",
+   "description": "换货超过7天窗口：应在换货口径下说明超窗口",
+   "input": [
+    "我要换货ORD002"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "换货超过签收7天窗口→回复换货口径含“7天/超过/不支持”说明（并可引导改退货退款）",
+   "pass_criteria": [
+    "回复含“换货”字样",
+    "含超窗口说明（7天/超过/不支持口径）"
+   ],
+   "fail_criteria": [
+    "仍给出换货办理流程",
+    "只转人工未说明超窗口原因"
+   ]
+  },
+  {
+   "id": "BE2",
+   "type": "边界条件",
+   "description": "签收第15天退货退款：仍在窗口内，正常预览",
+   "input": [
+    "我要退货退款ORD010"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第15天仍支持退货退款→正常给出明细预览，needs_human=false",
+   "pass_criteria": [
+    "needs_human=false",
+    "回复含明细/预览"
+   ],
+   "fail_criteria": [
+    "误判超窗口拒绝",
+    "needs_human=true误转人工"
+   ]
+  },
+  {
+   "id": "BE3",
+   "type": "边界条件",
+   "description": "签收第16天退货退款：超期不支持答复（不转人）",
+   "input": [
+    "我要退货退款ORD011"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第16天超过窗口→不支持答复结构输出（订单信息+政策依据+理由），不建单；不因超期强制转人",
+   "pass_criteria": [
+    "needs_human=false",
+    "回复按不支持答复结构输出（订单信息+政策依据+理由），不建单",
+    "回复含天数/不支持/超过等理由"
+   ],
+   "fail_criteria": [
+    "继续给正常预览",
+    "转人但未说明原因",
+    "模糊答复臆断订单情况"
+   ]
+  },
+  {
+   "id": "BE4",
+   "type": "边界条件",
+   "description": "退款金额等于阈值2000：无需审核正常受理",
+   "input": [
+    "我要退货退款ORD010"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "金额2000处于阈值（=阈值）→正常预览受理，needs_human=false",
+   "pass_criteria": [
+    "needs_human=false",
+    "回复含明细/预览"
+   ],
+   "fail_criteria": [
+    "误判超阈值触发转人工/审核",
+    "空回复无内容"
+   ]
+  },
+  {
+   "id": "BE5",
+   "type": "边界条件",
+   "description": "未签收仅退款：支持且无需寄回",
+   "input": [
+    "我要仅退款ORD012"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "未签收仅退款支持→推进预览（无需寄回口径），needs_human=false",
+   "pass_criteria": [
+    "needs_human=false",
+    "回复含仅退款/无需寄回/退款口径"
+   ],
+   "fail_criteria": [
+    "误拒仅退款",
+    "以未签收为由误转人工"
+   ]
+  },
+  {
+   "id": "BE6",
+   "type": "边界条件",
+   "description": "未签收发起退货退款：软阻断提示签收口径",
+   "input": [
+    "我要退货退款ORD004"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "未签收不能办理退货退款→说明未签收/预计签收后口径（引导仅退款或延后）",
+   "pass_criteria": [
+    "回复含未签收/尚未签收/预计等口径表述",
+    "含可操作建议（改仅退款/签收后再办）"
+   ],
+   "fail_criteria": [
+    "直接给出退货退款办理流程",
+    "仅转人工无说明"
+   ]
+  },
+  {
+   "id": "BE7",
+   "type": "边界条件",
+   "description": "定制商品退货退款：不支持答复（不转人）",
+   "input": [
+    "我要退货退款ORD007"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "定制商品不支持退货退款→按不支持答复结构输出（订单信息+政策支持情况+理由），不建单；不因定制强制转人",
+   "pass_criteria": [
+    "needs_human=false",
+    "回复按不支持答复结构输出（订单信息+政策依据+理由），不建单",
+    "回复含定制+不支持理由"
+   ],
+   "fail_criteria": [
+    "承诺可退（画饼）",
+    "无故转人或口径含糊"
+   ]
+  },
+  {
+   "id": "BE8",
+   "type": "流程操作",
+   "description": "发起后取消出口：确认取消不建单",
+   "input": [
+    "我要退货退款ORD001",
+    "先不退"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第2轮“先不退”确认取消并告知，不建单，needs_human=false",
+   "pass_criteria": [
+    "回复含取消/已取消",
+    "needs_human=false"
+   ],
+   "fail_criteria": [
+    "仍创建申请（建单）",
+    "needs_human=true误转人工"
+   ]
+  },
+  {
+   "id": "O1",
+   "type": "看词解歧修复",
+   "description": "退款完成后查询订单状态：不被售后词劫持",
+   "input": [
+    "我要退货退款ORD001",
+    "好的",
+    "ORD001订单状态怎么样"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第3轮订单状态查询正常作答（v2修复看词劫持）",
+   "pass_criteria": [
+    "第3轮回复包含ORD001且回答订单状态信息",
+    "needs_human=false"
+   ],
+   "fail_criteria": [
+    "第3轮被劫持为退款进度/转人工",
+    "答非所问"
+   ]
+  },
+  {
+   "id": "O2",
+   "type": "状态回显",
+   "description": "取消后问到账：回显已取消不误建单",
+   "input": [
+    "我要退货退款ORD001",
+    "先不退",
+    "退款到账了吗"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第3轮如实回显：已取消故无退款到账（或未发起），不重新建单",
+   "pass_criteria": [
+    "第3轮回复含ORD001或取消口径（说明无到账原因）"
+   ],
+   "fail_criteria": [
+    "重新创建申请",
+    "谎称已到账"
+   ]
+  },
+  {
+   "id": "O3",
+   "type": "离题处理",
+   "description": "确认环节连续离题3次：自动取消售后流程",
+   "input": [
+    "我要退货退款ORD002",
+    "哈哈",
+    "随便看看",
+    "这个多少钱"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第4轮累计离题满3次→自动取消流程并告知“自动取消”，needs_human=false；若模型第1轮异常未能进入预览离题计数环节，第4轮实质作答（订单摘要/继续追问确认）且不误转人亦视为通过。",
+   "pass_criteria": [
+    "第4轮回复含“自动取消”或取消",
+    "needs_human=false"
+   ],
+   "fail_criteria": [
+    "第4轮仍继续追问确认（不取消）",
+    "needs_human=true误转人工"
+   ]
+  },
+  {
+   "id": "O4",
+   "type": "类型切换",
+   "description": "预览环节用户改提换货：切换类型且保留确认",
+   "input": [
+    "我要退货退款ORD001",
+    "我要换货ORD001"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第2轮按换货诉求推进（换货明细/口径）并保留确认提示，不沿用退货退款口径",
+   "pass_criteria": [
+    "第2轮回复包含ORD001",
+    "含确认/等待提示"
+   ],
+   "fail_criteria": [
+    "坚持退货退款口径作答",
+    "完全重开丢失上下文"
+   ]
+  },
+  {
+   "id": "O5",
+   "type": "看词解歧修复",
+   "description": "退款完成后问政策：政策正常作答",
+   "input": [
+    "我要退货退款ORD001",
+    "好的",
+    "退换货政策是什么"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第3轮政策问题照常作答（签收7天退货退款口径等），不被退款环节看词劫持",
+   "pass_criteria": [
+    "第3轮回复含政策/签收/7天内容",
+    "needs_human=false"
+   ],
+   "fail_criteria": [
+    "第3轮仍锁在退款进度话术",
+    "政策问题引流或拒绝"
+   ]
+  },
+  {
+   "id": "O6",
+   "type": "预览插问",
+   "description": "预览环节问退货政策：作答政策且保留确认",
+   "input": [
+    "我要退货退款ORD001",
+    "退货政策是什么"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第2轮政策正常作答且维持确认/等待提醒（流程草稿不丢）",
+   "pass_criteria": [
+    "第2轮含政策内容（签收7天退货口径）",
+    "第2轮仍含确认/等待提示"
+   ],
+   "fail_criteria": [
+    "作答政策但丢失确认提醒（流程被中断）",
+    "政策未答"
+   ]
+  },
+  {
+   "id": "O7",
+   "type": "离题处理",
+   "description": "预览环节聊无关话题：提醒确认不陪聊",
+   "input": [
+    "我要退货退款ORD001",
+    "今天吃什么"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第2轮礼貌回应但不陪聊，重申确认/待确认提醒（流程保留）",
+   "pass_criteria": [
+    "第2轮含确认/等待提醒",
+    "未丢失售后流程状态"
+   ],
+   "fail_criteria": [
+    "直接陪聊美食话题",
+    "流程消失无任何确认提示",
+    "needs_human=true误转人工"
+   ]
+  },
+  {
+   "id": "O8",
+   "type": "流程操作",
+   "description": "离题后确认：正常建单",
+   "input": [
+    "我要退货退款ORD001",
+    "退换货政策是什么",
+    "确认"
+   ],
+   "precondition": "会话隔离（独立session）；refund内存重置；离线mock数据；真实模型LLM_PROVIDER=ark",
+   "expected": "第2轮答政策保留确认；第3轮“确认”成功创建退货退款申请",
+   "pass_criteria": [
+    "第2轮含确认/等待提示",
+    "第3轮回复建单成功口径（ORD001/创建申请）",
+    "needs_human=false"
+   ],
+   "fail_criteria": [
+    "第3轮仍重复追问确认（未建单）",
+    "政策插问打断流程丢失确认",
+    "needs_human=true误转人工"
+   ]
+  }
+ ]
+}

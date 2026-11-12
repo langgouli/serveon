@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "generated": "2026-11-08",
+    "kind": "对话评测样例总索引",
+    "total": 248,
+    "judge_modes": ["code_assert", "llm_judge"],
+    "note": "仅含对话评测样例；部件级单元测试未收录"
+  },
+  "sources": [
+    {
+      "id": "policy_json",
+      "path": "testdata/政策查询.json",
+      "item_count": 40,
+      "item_schema": ["id", "category", "type", "question", "answer"],
+      "driver": "tests/test_policy_llm.py",
+      "judge": "llm_judge",
+      "target": "v1 政策分类+LLM 问答",
+      "to_jsonify": "expected_from_answer"
+    },
+    {
+      "id": "refund_json",
+      "path": "testdata/退款功能.json",
+      "item_count": 45,
+      "item_schema": ["id", "category", "type", "question", "answer"],
+      "driver": "tests/test_refund_llm.py",
+      "judge": "llm_judge",
+      "target": "v1 refund 子图/换货专项/售后进度专项",
+      "to_jsonify": "expected_from_answer"
+    },
+    {
+      "id": "multi_intent_full",
+      "path": "tests/test_multi_intent_full.py",
+      "item_count": 47,
+      "item_schema": ["cid", "name", "messages", "assert_fn"],
+      "driver": "v1 主图 chat",
+      "judge": "code_assert",
+      "target": "多意图组合/探针"
+    },
+    {
+      "id": "multi_intent_boundary",
+      "path": "tests/test_multi_intent_boundary.py",
+      "item_count": 40,
+      "item_schema": ["cid", "name", "messages", "assert_fn"],
+      "driver": "v1 主图 chat",
+      "judge": "code_assert",
+      "target": "P/Q/X/BE/O 边界",
+      "cross_ref": "v2_boundary 同输入"
+    },
+    {
+      "id": "v2_boundary",
+      "path": "tests/test_react_v2_boundary.py",
+      "item_count": 40,
+      "item_schema": ["cid", "name", "messages", "assert_fn_v2"],
+      "driver": "v2 chat_v2",
+      "judge": "code_assert",
+      "target": "v2 ReAct 主循环回归",
+      "status": "PASS 40/40 (2026-11-08 real model run)",
+      "cross_ref": "multi_intent_boundary 同输入"
+    },
+    {
+      "id": "cases_design",
+      "path": "tests/test_cases_design.py",
+      "item_count": 33,
+      "item_schema": ["func", "messages", "asserts"],
+      "driver": "v1 主图 chat",
+      "judge": "code_assert",
+      "branches": ["simple_policy", "simple_order", "simple_logistics", "simple_aftersales", "negative", "multi_intent", "multiturn"]
+    },
+    {
+      "id": "e2e_chat",
+      "path": "tests/test_e2e_chat.py",
+      "item_count": 6,
+      "item_schema": ["func", "messages", "asserts"],
+      "driver": "v1 主图 chat",
+      "judge": "code_assert"
+    },
+    {
+      "id": "multi_turn",
+      "path": "tests/test_multi_turn.py",
+      "item_count": 4,
+      "item_schema": ["func", "messages", "asserts"],
+      "driver": "v1 主图 chat",
+      "judge": "code_assert"
+    },
+    {
+      "id": "multi_intent",
+      "path": "tests/test_multi_intent.py",
+      "item_count": 3,
+      "item_schema": ["func", "messages", "asserts"],
+      "driver": "v1 主图 chat",
+      "judge": "code_assert"
+    }
+  ]
+}
